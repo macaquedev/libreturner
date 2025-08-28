@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between">
+  <h2 class="h5 mb-3">{{ piece.name }}</h2>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('piece_pdf', slug=piece.slug) }}" target="_blank" title="Open PDF [o]">
+      Open <span class="kbd">o</span>
+    </a>
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('edit_piece', slug=piece.slug) }}" title="Edit [e]">Edit <span class="kbd">e</span></a>
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('piece_preview', slug=piece.slug) }}" title="Preview/select [v]">Preview <span class="kbd">v</span></a>
+    <form method="post" action="{{ url_for('delete_piece', slug=piece.slug) }}" class="d-inline" onsubmit="return confirm('Delete this piece? This cannot be undone.')">
+      <button class="btn btn-outline-danger btn-sm" type="submit" title="Delete">Delete</button>
+    </form>
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('home') }}" title="Back [b]">Back <span class="kbd">b</span></a>
+  </div>
+</div>
+
+<div class="card p-3">
+  <div><span class="text-muted">Type:</span> {{ piece.type }}</div>
+  {% if piece.type == 'pdf' %}
+    <div class="mt-2">
+      <div><span class="text-muted">Source:</span> {{ piece.source_pdf }}</div>
+      <div><span class="text-muted">Ranges:</span> {{ piece.page_ranges or 'all' }} {% if piece.selected_pages and piece.selected_pages|length %} (selected: {{ piece.selected_pages|length }} pages){% endif %}</div>
+    </div>
+  {% else %}
+    <div class="mt-2">
+      <div class="text-muted mb-1">Images ({{ piece.images|length }})</div>
+      <ol class="mb-0">
+        {% for img in piece.images %}
+          <li>{{ img.path }} {% if img.rotate %}(rotate {{ img.rotate }}°){% endif %} {% if not img.enabled %}(disabled){% endif %}</li>
+        {% endfor %}
+      </ol>
+    </div>
+  {% endif %}
+</div>
+
+<script>
+  document.addEventListener('keydown', (e) => {
+    if (['INPUT','TEXTAREA','SELECT'].includes((e.target.tagName||''))) return;
+    if (e.key === 'o') { window.open('{{ url_for("piece_pdf", slug=piece.slug) }}', '_blank'); }
+    if (e.key === 'e') { window.location = '{{ url_for("edit_piece", slug=piece.slug) }}'; }
+    if (e.key === 'v') { window.location = '{{ url_for("piece_preview", slug=piece.slug) }}'; }
+    if (e.key === 'b') { window.location = '{{ url_for("home") }}'; }
+  });
+</script>
+{% endblock %}

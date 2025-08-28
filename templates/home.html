@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .js-item.selected { outline: 2px solid rgba(13,110,253,.35); box-shadow: 0 0 0 .15rem rgba(13,110,253,.15); }
+</style>
+
+<div class="row g-4">
+  <div class="col-12 col-lg-6">
+    <div class="d-flex align-items-center justify-content-between mb-2">
+      <h2 class="h5 mb-0">Pieces</h2>
+      <a class="btn btn-primary btn-sm" href="{{ url_for('new_piece') }}">New Piece <span class="kbd">n</span></a>
+    </div>
+
+    {% if pieces %}
+      <div class="row row-cols-1 g-3">
+        {% for p in pieces %}
+          <div class="col">
+            <div
+              class="card card-hover js-item"
+              tabindex="0"
+              data-type="piece"
+              data-slug="{{ p.slug }}"
+              data-open-url="{{ url_for('piece_pdf', slug=p.slug) }}"
+              data-view-url="{{ url_for('view_piece', slug=p.slug) }}"
+            >
+              <div class="card-body d-flex align-items-center justify-content-between">
+                <div>
+                  <div class="fw-semibold">{{ p.name }}</div>
+                  <div class="text-muted small">Type: {{ p.type }}</div>
+                </div>
+                <div class="d-flex gap-2">
+                  <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('view_piece', slug=p.slug) }}">View</a>
+                  <a class="btn btn-outline-primary btn-sm" href="{{ url_for('piece_pdf', slug=p.slug) }}" target="_blank">Open <span class="kbd">o</span></a>
+                  <form method="post" action="{{ url_for('delete_piece', slug=p.slug) }}" onsubmit="return confirm('Delete this piece?')" class="d-inline">
+                    <button class="btn btn-outline-danger btn-sm" type="submit" title="Delete">Del</button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="alert alert-secondary">No pieces yet.</div>
+    {% endif %}
+  </div>
+
+  <div class="col-12 col-lg-6">
+    <div class="d-flex align-items-center justify-content-between mb-2">
+      <h2 class="h5 mb-0">Programmes</h2>
+      <a class="btn btn-primary btn-sm" href="{{ url_for('new_programme') }}">New Programme <span class="kbd">p</span></a>
+    </div>
+
+    {% if programmes %}
+      <div class="row row-cols-1 g-3">
+        {% for g in programmes %}
+          <div class="col">
+            <div
+              class="card card-hover js-item"
+              tabindex="0"
+              data-type="programme"
+              data-slug="{{ g.slug }}"
+              data-open-url="{{ url_for('programme_pdf', slug=g.slug) }}"
+              data-view-url="{{ url_for('view_programme', slug=g.slug) }}"
+            >
+              <div class="card-body d-flex align-items-center justify-content-between">
+                <div>
+                  <div class="fw-semibold">{{ g.name }}</div>
+                  <div class="text-muted small">Pieces: {{ g.pieces|length }}</div>
+                </div>
+                <div class="d-flex gap-2">
+                  <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('view_programme', slug=g.slug) }}">View</a>
+                  <a class="btn btn-outline-primary btn-sm" href="{{ url_for('programme_pdf', slug=g.slug) }}" target="_blank">Open <span class="kbd">o</span></a>
+                  <form method="post" action="{{ url_for('delete_programme', slug=g.slug) }}" onsubmit="return confirm('Delete this programme?')" class="d-inline">
+                    <button class="btn btn-outline-danger btn-sm" type="submit" title="Delete">Del</button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="alert alert-secondary">No programmes yet.</div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+  const items = Array.from(document.querySelectorAll('.js-item'));
+  let sel = items.length ? 0 : -1;
+
+  function applySel() {
+    items.forEach((el, i) => el.classList.toggle('selected', i === sel));
+    if (sel >= 0) items[sel].scrollIntoView({ block: 'nearest' });
+  }
+  applySel();
+
+  items.forEach((el, i) => {
+    el.addEventListener('click', () => { sel = i; applySel(); });
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (['INPUT','TEXTAREA','SELECT'].includes((e.target.tagName||''))) return;
+
+    if (e.key === 'j' && items.length) { e.preventDefault(); sel = Math.min(items.length - 1, sel + 1); applySel(); }
+    if (e.key === 'k' && items.length) { e.preventDefault(); sel = Math.max(0, (sel < 0 ? 0 : sel - 1)); applySel(); }
+
+    if (e.key === 'o' && sel >= 0) {
+      e.preventDefault();
+      const url = items[sel].dataset.openUrl;
+      if (url) window.open(url, '_blank');
+    }
+    if ((e.key === 'Enter' || e.key === 'e') && sel >= 0) {
+      e.preventDefault();
+      const url = items[sel].dataset.viewUrl;
+      if (url) window.location = url;
+    }
+  });
+</script>
+{% endblock %}

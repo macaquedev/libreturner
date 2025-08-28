@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="h5 mb-3">Edit Piece — {{ piece.name }}</h2>
+<form class="card p-3" method="post" action="{{ url_for('save_piece_edit', slug=piece.slug) }}" enctype="multipart/form-data">
+  {% if piece.type == 'pdf' %}
+    <div class="mb-3">
+      <label class="form-label">Page ranges (e.g. 1-3,5)</label>
+      <input class="form-control" name="page_ranges" value="{{ piece.page_ranges or '' }}" placeholder="leave empty for all">
+      <div class="form-text">Interactive selection overrides this; setting a range clears interactive selection.</div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Replace source (upload)</label>
+      <input class="form-control" type="file" name="pdf_file" accept="application/pdf">
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Or copy from path on disk</label>
+      <input class="form-control" name="source_path" placeholder="/path/to/score.pdf">
+      <div class="form-text">Will copy into this piece’s sources/ directory.</div>
+    </div>
+  {% else %}
+    <div class="mb-3">
+      <label class="form-label">Add images</label>
+      <input class="form-control" type="file" name="image_files" accept="image/*" multiple>
+    </div>
+    <div class="form-text">Reorder/enable/disable from Preview page.</div>
+  {% endif %}
+
+  <div class="d-flex gap-2">
+    <button class="btn btn-primary" type="submit" title="Save [s]">Save <span class="kbd">s</span></button>
+    <a class="btn btn-outline-secondary" href="{{ url_for('view_piece', slug=piece.slug) }}">Cancel</a>
+  </div>
+</form>
+<script>
+  document.addEventListener('keydown', (e) => {
+    if (['INPUT','TEXTAREA','SELECT'].includes((e.target.tagName||''))) {
+      if (e.key === 'Escape') window.location = '{{ url_for("view_piece", slug=piece.slug) }}';
+      return;
+    }
+    if (e.key === 's') document.querySelector('form').submit();
+    if (e.key === 'b') window.location = '{{ url_for("view_piece", slug=piece.slug) }}';
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="h5 mb-3">New Programme</h2>
+<form method="post" action="{{ url_for('create_programme') }}" class="card p-3">
+  <div class="mb-3">
+    <label class="form-label">Name</label>
+    <input class="form-control" name="name" required>
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Select pieces (Ctrl/Cmd for multi-select)</label>
+    <select class="form-select" name="pieces" multiple size="12" style="min-width: 320px;">
+      {% for p in pieces %}
+        <option value="{{ p.slug }}">{{ p.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="btn btn-primary" type="submit">Create</button>
+</form>
+{% endblock %}

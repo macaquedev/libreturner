@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between">
+  <h2 class="h5 mb-3">Preview — {{ piece.name }}</h2>
+  <div class="d-flex gap-2 sticky-actions p-2 rounded">
+    {% if mode == 'pdf' %}
+      <button class="btn btn-outline-secondary btn-sm" onclick="selectAll()" title="Select all [a]">All <span class="kbd">a</span></button>
+      <button class="btn btn-outline-secondary btn-sm" onclick="selectNone()" title="Select none [n]">None <span class="kbd">n</span></button>
+      <button class="btn btn-outline-secondary btn-sm" onclick="invert()" title="Invert [i]">Invert <span class="kbd">i</span></button>
+      <button class="btn btn-primary btn-sm" onclick="saveSelection()" title="Save [s]">Save <span class="kbd">s</span></button>
+    {% else %}
+      <button class="btn btn-primary btn-sm" onclick="saveImages()" title="Save [s]">Save <span class="kbd">s</span></button>
+    {% endif %}
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('view_piece', slug=piece.slug) }}" title="Back [b]">Back <span class="kbd">b</span></a>
+  </div>
+</div>
+
+{% if mode == 'pdf' %}
+  <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3" id="grid">
+    {% for p in pages %}
+      <div class="col">
+        <div class="p-2 text-center border rounded">
+          <img
+            data-src="{{ url_for('piece_thumb_page', slug=piece.slug, page=p) }}"
+            class="img-fluid thumb {% if p in selected %}selected{% endif %}"
+            data-index="{{ p }}"
+            loading="lazy"
+            decoding="async"
+            style="min-height: 140px; background: #f8f9fa"
+            onclick="toggle(this)"
+          >
+          <div class="small text-muted mt-1">Page {{ p }}</div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <script>
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const img = entry.target;
+          if (!img.dataset.src) return;
+          img.src = img.dataset.src;
+          delete img.dataset.src;
+          io.unobserve(img);
+        }
+      });
+    }, { rootMargin: '400px' });
+    document.querySelectorAll('img[data-src]').forEach(img => io.observe(img));
+
+    function toggle(img) { img.classList.toggle('selected'); }
+    function selectAll() { document.querySelectorAll('.thumb').forEach(t => t.classList.add('selected')); }
+    function selectNone() { document.querySelectorAll('.thumb').forEach(t => t.classList.remove('selected')); }
+    function invert() { document.querySelectorAll('.thumb').forEach(t => t.classList.toggle('selected')); }
+    async function saveSelection() {
+      const pages = Array.from(document.querySelectorAll('.thumb.selected')).map(t => parseInt(t.dataset.index)).sort((a,b)=>a-b);
+      const res = await fetch('{{ url_for("save_piece_pages", slug=piece.slug) }}', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pages })
+      });
+      if (res.ok) { location.href='{{ url_for("view_piece", slug=piece.slug) }}'; }
+    }
+    document.addEventListener('keydown', (e) => {
+      if (['INPUT','TEXTAREA','SELECT'].includes((e.target.tagName||''))) return;
+      if (e.key === 'a') { e.preventDefault(); selectAll(); }
+      if (e.key === 'n') { e.preventDefault(); selectNone(); }
+      if (e.key === 'i') { e.preventDefault(); invert(); }
+      if (e.key === 's') { e.preventDefault(); saveSelection(); }
+      if (e.key === 'b') { e.preventDefault(); location.href='{{ url_for("view_piece", slug=piece.slug) }}'; }
+    });
+  </script>
+{% else %}
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+  <ul class="list-group" id="imgList">
+    {% for t in tiles %}
+      <li class="list-group-item d-flex align-items-center gap-2">
+        <span class="drag-handle text-muted" title="Drag to reorder">&#8942;&#8942;</span>
+        <img src="{{ url_for('piece_source', slug=piece.slug, relpath=t.path) }}" style="height:48px;width:auto;" class="me-2">
+        <div class="flex-grow-1">
+          <code class="small">{{ t.path }}</code>
+        </div>
+        <div class="form-check me-2">
+          <input class="form-check-input" type="checkbox" {% if t.enabled %}checked{% endif %} data-path="{{ t.path }}">
+          <label class="form-check-label small">Enabled</label>
+        </div>
+      </li>
+    {% endfor %}
+  </ul>
+  <script>
+    const list = document.getElementById('imgList');
+    new Sortable(list, { handle: '.drag-handle', animation: 150 });
+    async function saveImages() {
+      const items = [];
+      list.querySelectorAll('li').forEach(li => {
+        const checkbox = li.querySelector('input[type="checkbox"]');
+        const path = checkbox.dataset.path;
+        const enabled = checkbox.checked;
+        items.push({ path, enabled, rotate: 0 });
+      });
+      const res = await fetch('{{ url_for("save_piece_images", slug=piece.slug) }}', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items })
+      });
+      if (res.ok) { location.href='{{ url_for("view_piece", slug=piece.slug) }}'; }
+    }
+    document.addEventListener('keydown', (e) => {
+      if (['INPUT','TEXTAREA','SELECT'].includes((e.target.tagName||''))) return;
+      if (e.key === 's') { e.preventDefault(); saveImages(); }
+      if (e.key === 'b') { location.href='{{ url_for("view_piece", slug=piece.slug) }}'; }
+    });
+  </script>
+{% endif %}
+{% endblock %}

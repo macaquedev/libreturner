@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between">
+  <h2 class="h5 mb-3">{{ programme.name }}</h2>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('programme_pdf', slug=programme.slug) }}" target="_blank" title="Open PDF [o]">
+      Open <span class="kbd">o</span>
+    </a>
+    <form method="post" action="{{ url_for('delete_programme', slug=programme.slug) }}" class="d-inline" onsubmit="return confirm('Delete this programme? This cannot be undone.')">
+      <button class="btn btn-outline-danger btn-sm" type="submit" title="Delete">Delete</button>
+    </form>
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('home') }}" title="Back [b]">Back <span class="kbd">b</span></a>
+  </div>
+</div>
+
+<!-- Add/Insert controls -->
+<div class="card p-3 mb-3">
+  <div class="row g-2 align-items-end">
+    <div class="col-12 col-md-6">
+      <label class="form-label">Add piece</label>
+      <select class="form-select" id="addPiece">
+        {% for p in all_pieces %}
+          <option value="{{ p.slug }}">{{ p.name }}</option>
+        {% endfor %}
+      </select>
+      <div class="form-text">Choose a piece to add to this programme.</div>
+    </div>
+    <div class="col-12 col-md-6 d-flex gap-2">
+      <button class="btn btn-outline-secondary" onclick="addAfter()" title="Insert after selected [a]">Insert after <span class="kbd">a</span></button>
+      <button class="btn btn-outline-secondary" onclick="addEnd()" title="Add to end [Shift+A]">Add to end <span class="kbd">A</span></button>
+      <a class="btn btn-outline-primary" href="{{ url_for('new_piece') }}" target="_blank">New Piece…</a>
+      <button class="btn btn-primary ms-auto" onclick="saveOrder()" title="Save [s]">Save <span class="kbd">s</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- Reorder + selection list -->
+<div class="card p-3 mb-3">
+  <div class="d-flex align-items-center justify-content-between mb-2">
+    <h3 class="h6 mb-0">Order</h3>
+    <div class="text-muted small">Click a row to select; drag to reorder; Remove deletes from this programme.</div>
+  </div>
+  <ul class="list-group" id="progList">
+    {% for p in pieces %}
+      <li class="list-group-item d-flex align-items-center gap-2" data-slug="{{ p.slug }}" data-name="{{ p.name }}">
+        <span class="drag-handle text-muted" title="Drag to reorder">&#8942;&#8942;</span>
+        <div class="flex-grow-1">{{ p.name }}</div>
+        <button type="button"
+                class="btn btn-outline-danger btn-sm btn-remove"
+                title="Remove from programme"
+                data-bs-toggle="modal"
+                data-bs-target="#removeModal">Remove</button>
+      </li>
+    {% endfor %}
+  </ul>
+</div>
+
+<!-- Confirm Remove Modal -->
+<div class="modal fade" id="removeModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Remove piece from programme</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" title="Cancel [n]"></button>
+      </div>
+      <div class="modal-body">
+        Are you sure you want to remove “<span id="rmName"></span>” from this programme?
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="rmNo">No <span class="kbd">n</span></button>
+        <button type="button" class="btn btn-danger" id="rmYes">Yes <span class="kbd">y</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script>
+  const list = document.getElementById('progList');
+  const addSelect = document.getElementById('addPiece');
+  new Sortable(list, { handle: '.drag-handle', animation: 150 });
+
+  // Selection state
+  let selectedIdx = -1;
+  function clearSelection() {
+    list.querySelectorAll('.list-group-item').forEach(li => li.classList.remove('active'));
+  }
+  function selectIndex(idx) {
+    const items = Array.from(list.children);
+    if (!items.length) { selectedIdx = -1; return; }
+    idx = Math.max(0, Math.min(idx, items.length - 1));
+    clearSelection();
+    items[idx].classList.add('active');
+    items[idx].scrollIntoView({ block: 'nearest' });
+    selectedIdx = idx;
+  }
+  list.addEventListener('click', (e) => {
+    const li = e.target.closest('li');
+    if (!li) return;
+    const items = Array.from(list.children);
+    selectIndex(items.indexOf(li));
+  });
+  if (list.children.length) selectIndex(0);
+
+  // Create LI helper
+  function liFor(slug, name) {
+    const li = document.createElement('li');
+    li.className = 'list-group-item d-flex align-items-center gap-2';
+    li.dataset.slug = slug;
+    li.dataset.name = name || slug;
+    li.innerHTML = `
+      <span class="drag-handle text-muted" title="Drag to reorder">&#8942;&#8942;</span>
+      <div class="flex-grow-1">${name || slug}</div>
+      <button type="button"
+              class="btn btn-outline-danger btn-sm btn-remove"
+              title="Remove from programme"
+              data-bs-toggle="modal"
+              data-bs-target="#removeModal">Remove</button>
+    `;
+    return li;
+  }
+
+  // Insert after selection (or append)
+  function addAfter() {
+    const slug = addSelect.value;
+    const name = addSelect.options[addSelect.selectedIndex]?.text || slug;
+    if (!slug) return;
+    const li = liFor(slug, name);
+    if (selectedIdx >= 0 && selectedIdx < list.children.length) {
+      list.children[selectedIdx].after(li);
+      selectIndex(selectedIdx + 1);
+    } else {
+      list.appendChild(li);
+      selectIndex(list.children.length - 1);
+    }
+    saveOrder(true);
+  }
+
+  // Add to end
+  function addEnd() {
+    const slug = addSelect.value;
+    const name = addSelect.options[addSelect.selectedIndex]?.text || slug;
+    if (!slug) return;
+    const li = liFor(slug, name);
+    list.appendChild(li);
+    selectIndex(list.children.length - 1);
+    saveOrder(true);
+  }
+
+  // Persist order to backend
+  async function saveOrder(silent = false) {
+    const pieces = Array.from(list.querySelectorAll('li')).map(li => li.dataset.slug);
+    const res = await fetch('{{ url_for("reorder_programme", slug=programme.slug) }}', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pieces })
+    });
+    if (res.ok && !silent) location.reload();
+  }
+
+  // Remove via modal (y/n)
+  let pendingRemoveIndex = null;
+  const modalEl = document.getElementById('removeModal');
+  const rmName = document.getElementById('rmName');
+  const rmYes = document.getElementById('rmYes');
+
+  // Fill modal when triggered by a Remove button
+  modalEl.addEventListener('show.bs.modal', (ev) => {
+    const trigger = ev.relatedTarget;
+    const li = trigger?.closest('li');
+    const items = Array.from(list.children);
+    pendingRemoveIndex = items.indexOf(li);
+    rmName.textContent = li?.dataset.name || li?.dataset.slug || '';
+  });
+
+  function doRemove() {
+    if (pendingRemoveIndex == null) return;
+    const items = Array.from(list.children);
+    const li = items[pendingRemoveIndex];
+    if (li) li.remove();
+    // adjust selection
+    if (selectedIdx >= pendingRemoveIndex) selectedIdx = selectedIdx - 1;
+    if (selectedIdx < 0 && list.children.length) selectedIdx = 0;
+    if (list.children.length) selectIndex(selectedIdx); else clearSelection();
+    saveOrder(true);
+    bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+    pendingRemoveIndex = null;
+  }
+
+  rmYes.addEventListener('click', doRemove);
+
+  // y/n while modal is open
+  function modalKeyHandler(e) {
+    if (e.key === 'y') { e.preventDefault(); doRemove(); }
+    if (e.key === 'n' || e.key === 'Escape') { e.preventDefault(); bootstrap.Modal.getOrCreateInstance(modalEl).hide(); }
+  }
+  modalEl.addEventListener('shown.bs.modal', () => document.addEventListener('keydown', modalKeyHandler));
+  modalEl.addEventListener('hidden.bs.modal', () => document.removeEventListener('keydown', modalKeyHandler));
+
+  // Page keys (disabled while modal is open)
+  document.addEventListener('keydown', (e) => {
+    if (['INPUT','TEXTAREA','SELECT'].includes((e.target.tagName||''))) return;
+    if (modalEl.classList.contains('show')) return;
+    const items = Array.from(list.children);
+    if (e.key === 'j' && items.length) { e.preventDefault(); selectIndex(selectedIdx + 1); }
+    if (e.key === 'k' && items.length) { e.preventDefault(); selectIndex(selectedIdx - 1); }
+    if (e.key === 's') { e.preventDefault(); saveOrder(); }
+    if (e.key === 'o') { e.preventDefault(); window.open('{{ url_for("programme_pdf", slug=programme.slug) }}', '_blank'); }
+    if (e.key === 'b') { e.preventDefault(); window.location = '{{ url_for("home") }}'; }
+  });
+</script>
+{% endblock %}
