@@ -1,0 +1,3 @@
+#!/usr/bin/fish 
+
+export QT_QPA_PLATFORM=xcb	
